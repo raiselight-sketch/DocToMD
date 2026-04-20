@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# macOS
+.DS_Store
+*.icloud
+
+# IDE
+.cursor/
+.vscode/
+.idea/
+
+# 테스트 출력물
+tests/output/
