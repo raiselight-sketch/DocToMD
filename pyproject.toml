@@ -1,0 +1,16 @@
+[project]
+name = "doctomd-converter"
+version = "0.1.0"
+description = "모든 문서를 Markdown으로 변환하는 데스크톱 앱"
+requires-python = ">=3.11"
+dependencies = [
+    "markitdown[all]",
+    "pypandoc",
+    "customtkinter",
+    "tkinterdnd2",
+    "pillow",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
