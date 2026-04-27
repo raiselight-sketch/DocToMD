@@ -47,5 +47,10 @@ app = BUNDLE(
     coll,
     name='DocToMD.app',
     icon='src/resources/icon.icns',
-    bundle_identifier=None,
+    bundle_identifier='com.raiselight.doctomd',
+    info_plist={
+        'CFBundleShortVersionString': '1.0.1',
+        'CFBundleVersion': '1.0.1',
+        'NSAppleEventsUsageDescription': 'Pages 문서를 변환하기 위해 AppleScript 제어 권한이 필요합니다.',
+    }
 )

@@ -5,6 +5,7 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from pathlib import Path
 import tkinterdnd2
+from src import __version__
 
 SUPPORTED_EXTENSIONS = {
     ".docx", ".doc", ".pdf", ".pptx", ".ppt",
@@ -42,7 +43,7 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
         from core import DocumentConverter
         self.converter = DocumentConverter()
 
-        self.title("DocToMD")
+        self.title(f"DocToMD v{__version__}")
         self.geometry("800x680")
         self.minsize(680, 560)
         self.configure(bg=BG)
