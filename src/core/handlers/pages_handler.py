@@ -6,6 +6,7 @@ import zipfile
 from pathlib import Path
 from .base_handler import BaseHandler, ConversionResult
 from markitdown import MarkItDown
+from ._cleanup import cleanup_pages_markdown
 
 
 def _find_apple_pages_app() -> Path | None:
@@ -215,9 +216,10 @@ class PagesHandler(BaseHandler):
                     )
 
                 md_result = self.md.convert(str(docx_path))
+                cleaned = cleanup_pages_markdown(md_result.text_content)
                 output_path = output_dir / f"{input_path.stem}.md"
                 with open(output_path, "w", encoding="utf-8") as f:
-                    f.write(md_result.text_content)
+                    f.write(cleaned)
 
                 return ConversionResult(
                     input_path=input_path, output_path=output_path, success=True
