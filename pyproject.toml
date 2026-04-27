@@ -1,6 +1,6 @@
 [project]
 name = "doctomd-converter"
-version = "0.0.1"
+version = "1.0.1"
 description = "모든 문서를 Markdown으로 변환하는 데스크톱 앱"
 requires-python = ">=3.11"
 dependencies = [
