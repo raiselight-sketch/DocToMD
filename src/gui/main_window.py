@@ -53,8 +53,11 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
         self.source_folder: Path | None = None
         self.output_directory = Path(os.path.expanduser("~/Desktop/DocToMD_Result"))
         self.keep_structure   = ctk.BooleanVar(value=True)
+        self.save_same_as_source = ctk.BooleanVar(value=True)  # 원본 위치 저장 기능 추가
         self.appearance_mode  = "dark"
         self.is_processing    = False
+        self.use_ai = ctk.BooleanVar(value=False)
+        self.ai_model = ctk.StringVar(value="2b")
 
         self._build_ui()
 
@@ -100,6 +103,13 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
             corner_radius=10, command=self._toggle_theme
         )
         self._theme_btn.pack(side="left")
+
+        self._chat_btn = ctk.CTkButton(
+            right, text="💬 채팅", width=60, height=36,
+            fg_color=CARD2, hover_color=BORDER,
+            corner_radius=10, command=self._open_chat
+        )
+        self._chat_btn.pack(side="left", padx=(8, 0))
 
         # ── 액션 버튼 행 ────────────────────────────────────────
         action_bar = ctk.CTkFrame(self, fg_color=BG)
@@ -147,13 +157,45 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
             font=ctk.CTkFont(size=13, weight="bold"), text_color=TEXT_PRI
         ).grid(row=0, column=0, sticky="w")
 
+        # AI 옵션
+        ai_frame = ctk.CTkFrame(list_hdr, fg_color="transparent")
+        ai_frame.grid(row=0, column=1, padx=(20, 0))
+
+        self.ai_chk = ctk.CTkCheckBox(
+            ai_frame, text="AI 개선",
+            variable=self.use_ai,
+            font=ctk.CTkFont(size=12), text_color=TEXT_SEC,
+            border_color=BORDER, fg_color=ACCENT, checkmark_color=TEXT_PRI
+        )
+        self.ai_chk.pack(side="left", padx=(0, 8))
+
+        self.ai_model_combo = ctk.CTkComboBox(
+            ai_frame, values=["2b", "7b"], variable=self.ai_model,
+            width=60, height=24, font=ctk.CTkFont(size=11),
+            fg_color=CARD2, button_color=BORDER, button_hover_color=ACCENT,
+            dropdown_fg_color=CARD, dropdown_text_color=TEXT_PRI,
+            state="disabled"  # 기본적으로 비활성화
+        )
+        self.ai_model_combo.pack(side="left")
+
+        # 체크박스 상태에 따라 콤보박스 활성화
+        self.use_ai.trace_add("write", self._toggle_ai_model)
+
         self.keep_chk = ctk.CTkCheckBox(
-            list_hdr, text="폴더 구조 유지",
+            list_hdr, text="구조 유지",
             variable=self.keep_structure,
             font=ctk.CTkFont(size=12), text_color=TEXT_SEC,
             border_color=BORDER, fg_color=ACCENT, checkmark_color=TEXT_PRI
         )
-        self.keep_chk.grid(row=0, column=2, sticky="e")
+        self.keep_chk.grid(row=0, column=2, sticky="e", padx=(10, 0))
+
+        self.same_folder_chk = ctk.CTkCheckBox(
+            list_hdr, text="원본 위치에 저장",
+            variable=self.save_same_as_source,
+            font=ctk.CTkFont(size=12), text_color=TEXT_SEC,
+            border_color=BORDER, fg_color=ACCENT, checkmark_color=TEXT_PRI
+        )
+        self.same_folder_chk.grid(row=0, column=3, sticky="e")
 
         # 구분선
         ctk.CTkFrame(list_card, height=1, fg_color=BORDER).grid(
@@ -355,6 +397,16 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
         ctk.set_appearance_mode(self.appearance_mode)
         self._theme_btn.configure(text="🌙" if self.appearance_mode == "dark" else "☀️")
 
+    def _toggle_ai_model(self, *args):
+        if self.use_ai.get():
+            self.ai_model_combo.configure(state="normal")
+        else:
+            self.ai_model_combo.configure(state="disabled")
+
+    def _open_chat(self):
+        """Gemma 채팅 창을 엽니다."""
+        ChatWindow(self)
+
     # ──────────────────────────────────────────────────────────────
     # 변환 실행
     # ──────────────────────────────────────────────────────────────
@@ -369,6 +421,10 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
         threading.Thread(target=self._worker, daemon=True).start()
 
     def _get_outdir(self, p: Path) -> Path:
+        # 원본 위치 저장 옵션이 켜져 있으면 파일이 있는 폴더 반환
+        if self.save_same_as_source.get():
+            return p.parent
+            
         if self.keep_structure.get() and self.source_folder:
             try:
                 rel = p.parent.relative_to(self.source_folder)
@@ -385,7 +441,7 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
         ok = fail = 0
         for f in files:
             outdir = self._get_outdir(f)
-            result = self.converter.convert(f, outdir)
+            result = self.converter.convert(f, outdir, self.use_ai.get(), self.ai_model.get())
             status = "SUCCESS" if result.success else "FAILED"
             if result.success:
                 ok += 1
@@ -408,7 +464,95 @@ class MainWindow(tkinterdnd2.TkinterDnD.Tk):
         self.progress.stop()
         self.progress.grid_remove()
         self.start_btn.configure(state="normal", text="변환 시작  ▶", fg_color=ACCENT)
+
+        save_msg = "원본 파일 위치" if self.save_same_as_source.get() else str(self.output_directory)
+        
         messagebox.showinfo(
             "완료",
-            f"변환 완료!\n\n✅ 성공  {ok}개\n❌ 실패  {fail}개\n\n저장 위치:\n{self.output_directory}"
+            f"변환 완료!\n\n✅ 성공  {ok}개\n❌ 실패  {fail}개\n\n저장 위치:\n{save_msg}"
         )
+
+
+class ChatWindow(ctk.CTkToplevel):
+    """Gemma 채팅 창."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Gemma 채팅")
+        self.geometry("600x700")
+        self.configure(bg=BG)
+
+        from core.gemma_handler import gemma_chat
+        self.chat_handler = gemma_chat
+
+        self._build_chat_ui()
+
+    def _build_chat_ui(self):
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        # 채팅 히스토리
+        self.chat_frame = ctk.CTkScrollableFrame(
+            self, fg_color=CARD, corner_radius=14,
+            scrollbar_button_color=BORDER,
+            scrollbar_button_hover_color=ACCENT
+        )
+        self.chat_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=(20, 10))
+
+        # 입력 프레임
+        input_frame = ctk.CTkFrame(self, fg_color=CARD, corner_radius=14, height=80)
+        input_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+        input_frame.grid_propagate(False)
+        input_frame.columnconfigure(0, weight=1)
+
+        self.input_entry = ctk.CTkEntry(
+            input_frame, placeholder_text="메시지를 입력하세요...",
+            font=ctk.CTkFont(size=14), fg_color=CARD2,
+            border_color=BORDER
+        )
+        self.input_entry.grid(row=0, column=0, sticky="ew", padx=16, pady=16)
+        self.input_entry.bind("<Return>", self._send_message)
+
+        send_btn = ctk.CTkButton(
+            input_frame, text="전송", width=80, height=32,
+            fg_color=ACCENT, hover_color=ACCENT_DARK,
+            command=self._send_message
+        )
+        send_btn.grid(row=0, column=1, padx=(8, 16), pady=16)
+
+        # 초기 메시지
+        self._add_message("Assistant", "안녕하세요! Gemma와 대화할 수 있습니다. 무엇을 도와드릴까요?")
+
+    def _send_message(self, event=None):
+        user_text = self.input_entry.get().strip()
+        if not user_text:
+            return
+
+        self._add_message("You", user_text)
+        self.input_entry.delete(0, "end")
+
+        # 응답 생성 (비동기로)
+        threading.Thread(target=self._generate_response, args=(user_text,), daemon=True).start()
+
+    def _generate_response(self, user_text):
+        response = self.chat_handler.chat(user_text)
+        self.after(0, self._add_message, "Assistant", response)
+
+    def _add_message(self, sender, text):
+        msg_frame = ctk.CTkFrame(self.chat_frame, fg_color="transparent")
+        msg_frame.pack(fill="x", pady=8, padx=8)
+
+        sender_label = ctk.CTkLabel(
+            msg_frame, text=f"{sender}:",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=ACCENT if sender == "Assistant" else TEXT_PRI
+        )
+        sender_label.pack(anchor="w")
+
+        text_label = ctk.CTkLabel(
+            msg_frame, text=text,
+            font=ctk.CTkFont(size=13), text_color=TEXT_PRI,
+            wraplength=500, justify="left"
+        )
+        text_label.pack(anchor="w", pady=(4, 0))
+₩

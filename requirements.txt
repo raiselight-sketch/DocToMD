@@ -65,3 +65,6 @@ urllib3==2.6.3
 xlrd==2.0.2
 xlsxwriter==3.2.9
 youtube-transcript-api==1.2.4
+transformers==4.40.0
+torch==2.2.0
+accelerate==0.28.0
